@@ -81,8 +81,8 @@ factorial:
 .L7:
 	movl	-8(%rbp), %eax
 	cmpl	-20(%rbp), %eax
-	jl	.L8
-	movl	$0, %eax
+	jle	.L8
+	movl	-4(%rbp), %eax
 .L6:
 	popq	%rbp
 	.cfi_def_cfa 7, 8

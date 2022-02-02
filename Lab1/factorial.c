@@ -11,10 +11,10 @@ int i, result = 1;
 if (number==0)
 	return 0;
 else {
-	for(i=1;i<number;i++){
+	for(i=1;i<=number;i++){
 		result=result*i;
 	}
 }
-return 0;
+return result;
 }
 
