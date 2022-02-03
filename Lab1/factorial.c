@@ -1,8 +1,6 @@
 #include <stdio.h>
 int main(){
-int number;
-printf("Enter a number: ");
-scanf("%d",&number);
+int number=4;
 printf("Factorial of %d is: %d", number, factorial(number));
 }
 

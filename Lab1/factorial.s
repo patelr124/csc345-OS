@@ -2,10 +2,6 @@
 	.text
 	.section	.rodata
 .LC0:
-	.string	"Enter a number: "
-.LC1:
-	.string	"%d"
-.LC2:
 	.string	"Factorial of %d is: %d"
 	.text
 	.globl	main
@@ -20,33 +16,18 @@ main:
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
 	subq	$16, %rsp
-	movq	%fs:40, %rax
-	movq	%rax, -8(%rbp)
-	xorl	%eax, %eax
-	leaq	.LC0(%rip), %rdi
-	movl	$0, %eax
-	call	printf@PLT
-	leaq	-12(%rbp), %rax
-	movq	%rax, %rsi
-	leaq	.LC1(%rip), %rdi
-	movl	$0, %eax
-	call	__isoc99_scanf@PLT
-	movl	-12(%rbp), %eax
+	movl	$4, -4(%rbp)
+	movl	-4(%rbp), %eax
 	movl	%eax, %edi
 	movl	$0, %eax
 	call	factorial
 	movl	%eax, %edx
-	movl	-12(%rbp), %eax
+	movl	-4(%rbp), %eax
 	movl	%eax, %esi
-	leaq	.LC2(%rip), %rdi
+	leaq	.LC0(%rip), %rdi
 	movl	$0, %eax
 	call	printf@PLT
 	movl	$0, %eax
-	movq	-8(%rbp), %rcx
-	xorq	%fs:40, %rcx
-	je	.L3
-	call	__stack_chk_fail@PLT
-.L3:
 	leave
 	.cfi_def_cfa 7, 8
 	ret
@@ -67,23 +48,23 @@ factorial:
 	movl	%edi, -20(%rbp)
 	movl	$1, -4(%rbp)
 	cmpl	$0, -20(%rbp)
-	jne	.L5
+	jne	.L4
 	movl	$0, %eax
-	jmp	.L6
-.L5:
+	jmp	.L5
+.L4:
 	movl	$1, -8(%rbp)
-	jmp	.L7
-.L8:
+	jmp	.L6
+.L7:
 	movl	-4(%rbp), %eax
 	imull	-8(%rbp), %eax
 	movl	%eax, -4(%rbp)
 	addl	$1, -8(%rbp)
-.L7:
+.L6:
 	movl	-8(%rbp), %eax
 	cmpl	-20(%rbp), %eax
-	jle	.L8
+	jle	.L7
 	movl	-4(%rbp), %eax
-.L6:
+.L5:
 	popq	%rbp
 	.cfi_def_cfa 7, 8
 	ret
