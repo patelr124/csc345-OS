@@ -1,0 +1,10 @@
+QUICK LINES
+
+Compiler / Assembler: 
+	gcc -S hello.c
+
+Linker: 
+	gcc -o hello hello.s
+
+to disassemble objective codes to txt
+ 	objdump -d (filename) > (filename).txt
