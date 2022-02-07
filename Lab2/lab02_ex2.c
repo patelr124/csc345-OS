@@ -1,3 +1,7 @@
+/** Riya Patel
+CSC 345-01
+Lab 2 Exercise 2
+**/
 #define SIZE 5
 #include <stddef.h>
 #include <stdio.h>
