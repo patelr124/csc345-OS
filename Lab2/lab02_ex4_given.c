@@ -1,6 +1,6 @@
 /** Riya Patel
 CSC 345-01
-Lab 2 Exercise 4
+Lab 2 Exercise 4 Given
 **/
 
 #include <sys/types.h>

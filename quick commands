@@ -8,3 +8,6 @@ Linker:
 
 to disassemble objective codes to txt
  	objdump -d (filename) > (filename).txt
+
+view processes:
+	ps 
