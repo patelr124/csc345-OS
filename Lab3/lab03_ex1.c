@@ -1,3 +1,7 @@
+/** Riya Patel
+CSC 345-01
+Lab 3 Exercise 1
+**/
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
