@@ -1,3 +1,8 @@
+/** Riya Patel
+CSC 345-01
+Lab 4 Exercise 2
+**/
+
 #include <pthread.h>
 #include <stdio.h>
 #define NUM_THREADS 5
@@ -24,7 +29,7 @@ int main(int argc, char** argv){
             printf("SCHED_FIFO\n");
     }
 
-    if (pthread_attr_setschedpolicy(&attr, SCHED_FIFO) != 0)
+    if (pthread_attr_setschedpolicy(&attr, SCHED_OTHER) != 0)
         fprintf(stderr, "Unable to set policy.\n");
 
     if(pthread_attr_getschedpolicy(&attr, &policy) != 0){

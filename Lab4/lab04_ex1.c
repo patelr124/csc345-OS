@@ -1,3 +1,7 @@
+/** Riya Patel
+CSC 345-01
+Lab 4 Exercise 1
+**/
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
