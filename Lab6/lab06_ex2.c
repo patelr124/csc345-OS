@@ -10,7 +10,7 @@ Lab 6 Exercise 2
 #include <sys/types.h>
 #include <wait.h>
 
-#define MAX_WAIT 3;
+#define MAX_WAIT 2;
 
 typedef struct _FARMER{
     pthread_t t;
@@ -30,55 +30,55 @@ int prev = 0; // to indicate whose turn it was before
 
 void enter_bridgeN(FARMER* f){
     num_Nwaiting++;	
-	printf("North farmer %d is waiting to cross bridge.\n", f->idx);
+	printf("North farmer %d is waiting to cross bridge.\n", f->idx+1);
 	
 	pthread_mutex_lock(&c_mutex);
-	while (crossing == 1 || prev == 0)
+	while (crossing == 1 && (prev == 0))
 		pthread_cond_wait(&c_condv, &c_mutex);
 
 	num_Nwaiting--;
-	prev = 0;
+	prev = 1;
 	crossing = 1;
-	printf("North farmer %d has entered the bridge.\n", f->idx);
+	printf("North farmer %d has entered the bridge.\n", f->idx+1);
 }
 
 void exit_bridgeN(FARMER* f)
 {
 	crossing = 0;
-	printf("North farmer %d about to exit the bridge.\n", f->idx);
+	printf("North farmer %d about to exit the bridge.\n", f->idx+1);
 
 	// notify everyone waiting to pass the bridge (regardless of direction)
 	pthread_mutex_unlock(&c_mutex);
 	pthread_cond_broadcast(&c_condv);
 
-	printf("North farmer %d has exited the bridge.\n", f->idx);
+	printf("North farmer %d has exited the bridge.\n", f->idx+1);
 }
 
 void enter_bridgeS(FARMER* f)
 {
 	num_Swaiting++;
-	printf("South farmer %d is waiting to cross the bridge.\n", f->idx);
+	printf("South farmer %d is waiting to cross the bridge.\n", f->idx+1);
 
 	pthread_mutex_lock(&c_mutex);
-	while (crossing == 1 || prev == 1)
+	while (crossing == 1 && prev == 1 )
 		pthread_cond_wait(&c_condv, &c_mutex);
 
 	num_Swaiting--;
-	prev = 1;
+	prev = 0;
 	crossing = 1;
-	printf("South farmer %d has entered the bridge.\n", f->idx);
+	printf("South farmer %d has entered the bridge.\n", f->idx+1);
 }
 
-void exit_bridge_south(FARMER* f)
+void exit_bridgeS(FARMER* f)
 {
 	crossing = 0;
-	printf("South farmer %d about to exit the bridge.\n", f->idx);
+	printf("South farmer %d about to exit the bridge.\n", f->idx+1);
 
 	// notify everyone waiting to pass the bridge (regardless of direction)
 	pthread_mutex_unlock(&c_mutex);
 	pthread_cond_broadcast(&c_condv);
 
-	printf("South farmer %d has exited the bridge.\n", f->idx);
+	printf("South farmer %d has exited the bridge.\n", f->idx+1);
 }
 
 void* pass_bridge(void* param)
@@ -89,16 +89,14 @@ void* pass_bridge(void* param)
 	if (f->isNorth) {
 		enter_bridgeN(f);
 	} else {
-		enter_bridgeN(f);
+		enter_bridgeS(f);
 	}
 
 	/* Critical Section */
 	if (f->isNorth == 1) { /* North Farmer */
-		printf("   North Farmer %d is passing bridge in %d seconds.\n",
-				f->idx, f->waitfor);
+		printf("ETA : North Farmer %d is passing bridge in %d seconds.\n", f->idx+1, f->waitfor);
 	} else { /* South Farmer */
-		printf("   South Farmer %d is passing bridge in %d seconds.\n",
-				f->idx, f->waitfor);
+		printf("ETA : South Farmer %d is passing bridge in %d seconds.\n", f->idx+1, f->waitfor);
 	}
 	sleep(f->waitfor);
 
