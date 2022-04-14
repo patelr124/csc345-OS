@@ -1,228 +1,189 @@
+/*
+ * Project 3: Virtual Memory Manager
+ * Shwetha Raju & Riya Patel
+ * CSC 345 01
+ * Due Date: 04/15/2022
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <time.h>
 
-#define MAX_PT_ENTRIES 256      /* max page table entries */
-#define PAGE_SIZE 256           /* page size in bytes*/
-#define MAX_TLB_ENTRIES 16      /* max TLB entries */
-#define FRAME_SIZE 256          /* frame size in bytes*/
-#define MAX_FRAMES 128          /* maxi frames in physical memory */
+/* Declaring CONST variables */
+#define PAGE_SIZE 256           /* page size (bytes) */
+#define PT_ENTRY_MAX 256           /* max val for table entries */
 
-#define BYTES_PER_INPUT 256     /* # of bytes to read from BACKING_STORE.bin */
+#define FRAME_SIZE 256          /* frame size (bytes) */
+#define FRAME_MAX 128           /* max frames in physical memory */
 
-typedef struct
-{
+#define INPUT_BYTE 256          /* count bytes read from BACKING_STORE.bin */
+#define TLB_ENTRY_MAX 16        /* max TLB entries */
+
+/* Output Files Created */
+FILE *backing_store;            /* mirror of everying in logical address space */
+FILE *virtual;                  /* output file for virtual address */
+FILE *physical;                 /* output file for physical address */
+FILE *val;                      /* output file for byte values */
+
+typedef struct{
     int page_num;
     int frame_num;
 } page_frame;
 
-int physical_memory[MAX_FRAMES][FRAME_SIZE]; /* Physical memory holds 256 bytes per frame */
-page_frame TLB[MAX_TLB_ENTRIES];             /* TLB holds a page number and a cooresponding frame number */
-page_frame page_table[MAX_PT_ENTRIES];       /* Page table holds a page number and a cooresponding frame number */
+int phy_memory[FRAME_MAX][FRAME_SIZE];  /* physical memory: holding 256 bytes  */ 
+page_frame TLB[TLB_ENTRY_MAX];          /* TLB holds a page number and a corresponding frame number */
+page_frame page_table[PT_ENTRY_MAX];       /* Page table holds a page number and a corresponding frame number */
 
-int address_cnt = 0;   /* translated address counter */
-int page_faults_cnt = 0;/* page fault counter */
-int tlb_hits = 0;       /* TLB hit counter */
-int framePos = 0;       /* next available frame position in physical memory */
-int PTPos = 0;          /* next available position in page table */
-int TLBPos = 0;         /* next available position in TLB */
+int address_c = 0;          /* address counter */
+int page_faults = 0;        /* page fault counter */
+int hits = 0;               /* TLB hit counter */
+int next_pos = 0;           /* next available frame position in physical memory */
+int next_table_pos = 0;     /* next available position in page table */
+int next_tlb_pos = 0;       /* next available position in TLB */
 
-/* Load BACKING_STORE.bin - mirror of everything in logical address space */
-FILE *backing_store;
-/* Create output files for virtual addresses, physical addresses, and values */
-FILE *virtual, *physical, *val;
-
-void getPage(int address); /*instantiate functions */
-void readStore(int page_num);
+/*instantiate functions */
 void TLBInsert(int page_num, int frame_num);
+void getPage(int address);
+void readStore(int page_num);
 
-int main(int argc, char** argv)
-{
-    /* Load addresses from input file, as directed from command line*/
-    FILE *input;
-    if(argc == 2) 
-    {
-        char const* const fileName = argv[1]; /* correct usage: ./main addresses.txt */
-        input = fopen(fileName, "rt");
-
-        /* open up output files */
-        virtual = fopen("out1.txt","w");
-        physical = fopen("out2.txt","w");
-        val = fopen("out3.txt","w");
-    }
-    else
-    {
-        fprintf(stderr,"Input address file not specified.\n"); /* error checking input */
-        return -1;
-    }
-
-    int32_t logical_address;
-    fscanf(input, "%d", &logical_address); /*logical address */
-
-    while(!feof(input)) /*pull logical addresses from the address file*/
-    {   
-        address_cnt++;
-        /* get physical address and value stored at that address */
-        getPage(logical_address);
-
-        /* Scan for any new integers on proceeding lines */
-        fscanf(input, "%d", &logical_address);
-    }
-    printf("%d addresses.\n", address_cnt);
-
-    fclose(input);
-    fclose(virtual);
-    fclose(physical);
-    fclose(val);
-
-    double pf_rate = page_faults_cnt / (double)address_cnt;
-    double tlb_rate = tlb_hits / (double)address_cnt;
-
-    printf("Page Faults: %d\tPage Fault Rate: %.2f\n", page_faults_cnt, pf_rate);
-    printf("TLB Hits: %d\t TLB Rate: %.3f\n", tlb_hits, tlb_rate);
-
-    return 0;
-}
-
-void getPage(int logical_address)
-{
-    /* Declare page (0x0000FF00) and offset (0x000000FF) */
-    uint8_t page = logical_address >> 8 & 0xFF; 
-    uint8_t offset = logical_address & 0xFF;
-    int frame = -1;
+void TLBInsert(int page_num, int frame_num){
     int i;
 
-    /* Search TLB for page and set frame number if found */
-    for(i = 0; i < TLBPos; i++)
-    {
-        if(TLB[i].page_num == page)
-        {
-            frame = TLB[i].frame_num;
-            tlb_hits++;
-            break;
+    /* while there is space in table */ 
+    if(next_tlb_pos < TLB_ENTRY_MAX){
+        TLB[next_tlb_pos].page_num = page_num;
+        TLB[next_tlb_pos].frame_num = frame_num;
+        next_tlb_pos++;
+    } else { /* if no space: LRU is used */ 
+        for(i = 0; i < TLB_ENTRY_MAX-1; i++) {
+            TLB[i] = TLB[i+1];
         }
-    }
-
-    /* If not found, search page table and set frame number if found */
-    if(frame == -1)
-    {
-        for(i = 0;i < PTPos; i++)
-        {
-            if(page_table[i].page_num == page)
-            {
-                /* Page was found - get frame */
-                frame = page_table[i].frame_num;
-                break;
-            }
-        }
-    }
-
-    /* If not found, declare page fault and read in frame number from backing_store (readFromStore) */
-    /* Update page table entry, restart address conversion and access procedure */
-    if(frame == -1)
-    {
-        readStore(page);
-        page_faults_cnt++;
-        /* Decrement updated framePos to get frame of current page */
-        frame = framePos - 1;
-    }
-
-    /* Insert page num and frame into TLB if not there already */
-    TLBInsert(page, frame);
-
-    fprintf(virtual,"%d\n",logical_address); /* logical_address -> out1.txt */
-    int physical_address = frame * PAGE_SIZE + offset;
-    fprintf(physical,"%d\n",physical_address); /* frame_num * 256 -> out2.txt */
-    int8_t value = physical_memory[frame][offset];
-    fprintf(val,"%d\n",value); /* Get signed byte value stored in physical_memory using frame_num and offset -> out3.txt */
-}
-
-void readStore(int page_num)
-{
-    /* Seek for page_num in backing_store */
-    /* Bring cooresponding frame num to physical_memory and page_table */
-
-    /* Declare buffer to hold 256 bytes */
-    int8_t buf[256];           
-    int i;
-
-    /* open BACKING_STORE.bin */
-    backing_store = fopen("BACKING_STORE.bin","rb");
-
-    /* Set file pointer at page number position */
-    if(fseek(backing_store, page_num*BYTES_PER_INPUT, SEEK_SET) != 0)
-    {
-        fprintf(stderr,"Error seeking through backing_store\n");
-    }
-
-    /* Read 256 bytes to buffer array */
-    if(fread(buf, sizeof(int8_t), BYTES_PER_INPUT, backing_store) == 0)
-    {
-        fprintf(stderr, "Error reading through file\n");
-    }
-
-    fclose(backing_store); /* close BACKING_STORE.bin */
-
-    /* if physical memory has not filled */
-    if(framePos < MAX_FRAMES)
-    {
-        /* Update frame in physical memory with 256 bytes */
-        for(i = 0;i < BYTES_PER_INPUT; ++i)
-        physical_memory[framePos][i] = buf[i];
-
-        /* Update page table with page and frame */
-        page_table[PTPos].page_num = page_num;
-        page_table[PTPos].frame_num = framePos;
-
-        /* Increment frame and page table's next available position */
-        framePos++;
-        PTPos++;
-    }
-    else /* Physical memory/PT is filled - use FIFO for replacement */
-    {
-        int j;
-        for(j = 0;j < MAX_FRAMES-1; j++) 
-        {
-            /* Push top mem out of queue */
-            for(i = 0; i < BYTES_PER_INPUT; ++i) 
-            physical_memory[j][i] = physical_memory[j+1][i];  
-            /* Push top page out of queue */
-            page_table[j] = page_table[j+1];            
-        }
-
-        /* Add new memory to back of physical memory */
-        for(i = 0;i < BYTES_PER_INPUT; ++i) 
-        physical_memory[j][i] = buf[i];
-
-        /* Add new page and frame to back of page table */
-        page_table[j].page_num = page_num;             
-        page_table[j].frame_num = framePos-1;
-    }
-}
-
-void TLBInsert(int page_num, int frame_num) /* Insert page and frame into TLB */
-{
-    int i;
-
-    /* Table has not been filled */
-    if(TLBPos < MAX_TLB_ENTRIES)
-    {
-        TLB[TLBPos].page_num = page_num;
-        TLB[TLBPos].frame_num = frame_num;
-        TLBPos++;
-    }
-    else /* if Table is filled, then use LRU*/ 
-    {
-        //TLBPos = 0;
-        for(i = 0; i < MAX_TLB_ENTRIES-1; i++)
-        {
-            TLB[i] = TLB[i+1]; /* push all numbers in queue left, popping top out */
-        }
-        /* Insert new page frame */
         TLB[i].page_num = page_num;
         TLB[i].frame_num = frame_num; 
     }
 }
 
+void getPage(int log_add){
+    /* Initializing Page and Offset */
+    uint8_t page = log_add >> 8 & 0xFF;     /* 0x0000FF00 */
+    uint8_t offset = log_add & 0xFF;        /* 0x000000FF */
+    int frame = -1;                         /* > 0 when frame is found */
+
+    /* Iterative search through TLB for page */
+    for(int i = 0; i < next_tlb_pos; i++){
+        if(TLB[i].page_num == page){
+            frame = TLB[i].frame_num;
+            hits++;
+            break; /* break loop once frame found */
+        }
+    }
+
+    /* Iterative search through page table for page */
+    if(frame == -1){
+        for(int i = 0;i < next_table_pos; i++){
+            if(page_table[i].page_num == page){
+                frame = page_table[i].frame_num;
+                break; /* break loop once frame found */
+            }
+        }
+    }
+
+    /*  when page not found in tlb or page table: get frame from backing_store file */
+    if(frame == -1){
+        readStore(page);
+        page_faults++;
+        frame = next_pos - 1;
+    }
+
+    TLBInsert(page, frame);
+    int physical_address = frame * PAGE_SIZE + offset;
+    int8_t value = phy_memory[frame][offset];
+    
+    fprintf(virtual,"%d\n",log_add);            /* translated logical address */
+    fprintf(physical,"%d\n",physical_address);  /* corresponding physical address */
+    fprintf(val,"%d\n",value);                  /* signed byte value stored in physical memory at the translated physical address */
+}
+
+void readStore(int page_num){
+    int8_t buffer[256]; 
+    backing_store = fopen("BACKING_STORE.bin","rb"); 
+
+    if(fseek(backing_store, page_num*INPUT_BYTE, SEEK_SET) != 0){
+        fprintf(stderr,"Error: Unable to iteratre through backing_store\n");
+    }
+
+    if(fread(buffer, sizeof(int8_t), INPUT_BYTE, backing_store) == 0){
+        fprintf(stderr, "Error: Unable to read through file\n");
+    }
+
+    fclose(backing_store);
+
+     /* while there is space in physical memory */
+    if(next_pos < FRAME_MAX){
+        for(int i = 0;i < INPUT_BYTE; ++i){
+            phy_memory[next_pos][i] = buffer[i];
+        }
+        /* update page table information */
+        page_table[next_table_pos].page_num = page_num;
+        page_table[next_table_pos].frame_num = next_pos;
+
+        next_pos++;
+        next_table_pos++;
+    } else{
+        int j;
+        for(j = 0;j < FRAME_MAX-1; j++) {
+            for(int i = 0; i < INPUT_BYTE; ++i) {
+                phy_memory[j][i] = phy_memory[j+1][i];  
+            }
+            page_table[j] = page_table[j+1];            
+        }
+        /* append buffer to physical memory */
+        for(int i = 0;i < INPUT_BYTE; ++i) {
+            phy_memory[j][i] = buffer[i];
+        }
+        
+        page_table[j].page_num = page_num;             
+        page_table[j].frame_num = next_pos-1;
+    }
+}
+
+int main(int argc, char** argv){
+        FILE *input;
+    if(argc != 2) {
+        fprintf(stderr,"Input address file not specified.\n");
+        return -1;
+    } else {
+        char const* const fileName = argv[1];
+        input = fopen(fileName, "rt");
+
+        /* creating output files */
+        virtual = fopen("out1.txt","w");
+        physical = fopen("out2.txt","w");
+        val = fopen("out3.txt","w");
+    }
+
+    int32_t log_add;
+    fscanf(input, "%d", &log_add);
+
+    /* pull logical addresses from the address file */
+    /* get physical address and value stored at that address */
+    while(!feof(input)){   
+        address_c++;
+        getPage(log_add);     
+        fscanf(input, "%d", &log_add);
+    }
+    double pf_rate = page_faults / (double)address_c;
+    double tlb_rate = hits / (double)address_c;
+    
+    printf("(with page replacement, using 128 frames) \n");  
+    printf("Page Faults = %d / %d, %.2f\n", page_faults, address_c, pf_rate);
+    printf("TLB Hits = %d / %d, %.3f\n", hits, address_c, tlb_rate);
+
+    fclose(input);
+    fclose(virtual);
+    fclose(physical);
+    fclose(val);
+    return 0;
+}
