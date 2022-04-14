@@ -177,7 +177,7 @@ int main(int argc, char** argv){
     double pf_rate = page_faults / (double)address_c;
     double tlb_rate = hits / (double)address_c;
     
-    printf("(with page replacement, using 128 frames) \n");  
+    printf("(with LRU page replacement, using 128 frames) \n");  
     printf("Page Faults = %d / %d, %.2f\n", page_faults, address_c, pf_rate);
     printf("TLB Hits = %d / %d, %.3f\n", hits, address_c, tlb_rate);
 
