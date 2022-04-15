@@ -13,13 +13,13 @@
 
 /* Declaring CONST variables */
 #define PAGE_SIZE 256                   /* page size (bytes) */
-#define PT_ENTRY_MAX 256              /* max val for table entries */
+#define PT_ENTRY_MAX 256                /* max val for table entries */
 
 #define FRAME_SIZE 256                  /* frame size (bytes) */
-#define MAX_FRAMES 128                  /* max frames in physical memory */
+#define FRAME_MAX 512                   /* max frames in physical memory */
 
-#define INPUT_BYTE 256             /* count bytes read from BACKING_STORE.bin */
-#define TLB_ENTRY_MAX 16           /* max TLB entries */
+#define INPUT_BYTE 256                  /* count bytes read from BACKING_STORE.bin */
+#define TLB_ENTRY_MAX 16                /* max TLB entries */
 
 /* Output Files Created */
 FILE *virtual;                          /* output file for virtual address */
@@ -33,9 +33,9 @@ typedef struct
     int frame_num;
 } page_frame;
 
-int phy_memory[MAX_FRAMES][FRAME_SIZE];         /* physical memory holds 256 bytes per frame */
-page_frame TLB[TLB_ENTRY_MAX];             /* TLB holds a page number and a corresponding frame number */
-page_frame page_table[PT_ENTRY_MAX];          /* page table holds a page number and a corresponding frame number */
+int phy_memory[FRAME_MAX][FRAME_SIZE];          /* physical memory holds 256 bytes per frame */
+page_frame TLB[TLB_ENTRY_MAX];                  /* TLB holds a page number and a corresponding frame number */
+page_frame page_table[PT_ENTRY_MAX];            /* page table holds a page number and a corresponding frame number */
 
 int address_c = 0;                              /* address counter */
 int page_faults = 0;                            /* page fault counter */
@@ -51,14 +51,14 @@ void getPage(int address);
 void readStore(int page_num);
 
 void TLBInsert(int page_num, int frame_num){
-    if(next_tlb_pos < TLB_ENTRY_MAX){                  /* while there is space in TLB */
+    if(next_tlb_pos < TLB_ENTRY_MAX){                       /* while there is space in TLB */
         TLB[next_tlb_pos].page_num = page_num;
         TLB[next_tlb_pos].frame_num = frame_num;
         next_tlb_pos++;
     } else {                                                /* if full - use FIFO for replacement */ 
         TLB[tempFIFO].page_num = page_num;
         TLB[tempFIFO].frame_num = frame_num; 
-        tempFIFO = (tempFIFO+1) % TLB_ENTRY_MAX;       /* tracks next frame to be replaced */
+        tempFIFO = (tempFIFO+1) % TLB_ENTRY_MAX;            /* tracks next frame to be replaced */
     }
 }
 void getPage(int logical_address){
@@ -119,7 +119,7 @@ void readStore(int page_num){
     fclose(backing_store); 
 
     /* while there is space in physical memory */
-    if(next_pos < MAX_FRAMES){
+    if(next_pos < FRAME_MAX){
         for(int i = 0; i < INPUT_BYTE; ++i){
             phy_memory[next_pos][i] = buffer[i];
         }
@@ -132,7 +132,7 @@ void readStore(int page_num){
         next_table_pos++;
     } else { /* physical memory full - use FIFO for replacement */
         int j;
-        for(j = 0; j < MAX_FRAMES-1; j++) {
+        for(j = 0; j < FRAME_MAX-1; j++) {
             for(int i = 0; i < INPUT_BYTE; ++i) {
                 phy_memory[j][i] = phy_memory[j+1][i];  
             }
@@ -176,7 +176,7 @@ int main(int argc, char** argv){
     double pf_rate = page_faults / (double)address_c;
     double tlb_rate = hits / (double)address_c;
 
-    printf("(with FIFO page replacement, using 128 frames)\n");
+    printf("(with FIFO page replacement, using %d frames)\n", FRAME_MAX);
     printf("Page Faults = %d / %d, %.2f\n", page_faults, address_c, pf_rate);
     printf("TLB Hits =  %d / %d, %.3f\n", hits, address_c, tlb_rate);
 
