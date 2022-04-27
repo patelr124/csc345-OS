@@ -1,3 +1,7 @@
+/** Riya Patel
+CSC 345-01
+Lab 12
+**/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,7 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#define PORT_NUM 1004
+#define PORT_NUM 12345
 
 void error(const char *msg)
 {
@@ -90,18 +94,23 @@ int main(int argc, char *argv[])
 	char buffer[256];
 	int n;
 
-	// always clear buffer before receiving a new message
-	memset(buffer, 0, 256);
-	n = recv(newsockfd, buffer, 255, 0);
-	if (n < 0) error("ERROR reading from socket");
+	do {
+		// always clear buffer before receiving a new message
+		memset(buffer, 0, 256);
+		n = recv(newsockfd, buffer, 255, 0);
+		if (n < 0) error("ERROR reading from socket");
 
-	//-----------------------------------------------
-	printf("Message from client: %s\n", buffer);
-	//-----------------------------------------------
 
-	n = send(newsockfd, buffer, strlen(buffer), 0);
-	if (n < 0) error("ERROR writing to socket");
-	
+
+		//-----------------------------------------------
+		printf("Message from client: %s\n", buffer);
+		//-----------------------------------------------
+
+		n = send(newsockfd, buffer, strlen(buffer), 0);
+		if (n < 0) error("ERROR writing to socket");
+		
+	} while (strlen(buffer)>1);
+
 	// close connection
 	close(newsockfd);
 

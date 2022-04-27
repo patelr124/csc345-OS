@@ -7,7 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 
-#define PORT_NUM 1004
+#define PORT_NUM 12345
 
 void error(const char *msg)
 {
@@ -56,24 +56,27 @@ int main(int argc, char *argv[])
 	// Send/Receive in stream socket (BLOCKing function)
 	char buffer[256];
 	int n;
+	
+	do {
 
-	//-------------------------------------------
-	printf("Please enter the message: ");
-	memset(buffer, 0, 256);
-	fgets(buffer, 255, stdin);
-	//-------------------------------------------
-	
-	n = send(sockfd, buffer, strlen(buffer), 0);
-	if (n < 0) error("ERROR writing to socket");
-	
-	// always clear buffer before receiving a new message
-	memset(buffer, 0, 256);
-	n = recv(sockfd, buffer, 255, 0);
-	if (n < 0) error("ERROR reading from socket");
-	
-	//-------------------------------------------
-	printf("Message from server: %s\n", buffer);
-	//-------------------------------------------
+		//-------------------------------------------
+		printf("Please enter the message: ");
+		memset(buffer, 0, 256);
+		fgets(buffer, 255, stdin);
+		//-------------------------------------------
+
+		n = send(sockfd, buffer, strlen(buffer), 0);
+		if (n < 0) error("ERROR writing to socket");
+		
+		// always clear buffer before receiving a new message
+		memset(buffer, 0, 256);
+		n = recv(sockfd, buffer, 255, 0);
+		if (n < 0) error("ERROR reading from socket");
+		
+		//-------------------------------------------
+		printf("Message from server: %s\n", buffer);
+		//-------------------------------------------
+	} while(strlen(buffer) > 1);
 	
 	close(sockfd);
 	
